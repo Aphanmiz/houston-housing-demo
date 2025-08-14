@@ -78,10 +78,32 @@ function generateDummyData(): HousingData {
 
 export async function GET() {
   try {
-    const data = generateDummyData()
-    return NextResponse.json(data)
+    const { fetchAllHousingData } = await import('@/lib/fred-api')
+    const data = await fetchAllHousingData()
+    
+    // Add cache headers
+    return NextResponse.json(data, {
+      headers: {
+        'Cache-Control': 'public, s-maxage=3600, stale-while-revalidate=7200',
+      },
+    })
   } catch (error) {
-    console.error("Error generating housing data:", error)
-    return NextResponse.json({ error: "Failed to fetch housing data" }, { status: 500 })
+    console.error('Error fetching housing data:', error)
+    
+    // Check for specific error types
+    if (error instanceof Error && error.message.includes('FRED_API_KEY')) {
+      return NextResponse.json(
+        { 
+          error: 'Failed to fetch housing data',
+          details: 'API key configuration error'
+        }, 
+        { status: 500 }
+      )
+    }
+    
+    return NextResponse.json(
+      { error: 'Failed to fetch housing data' }, 
+      { status: 500 }
+    )
   }
 }
